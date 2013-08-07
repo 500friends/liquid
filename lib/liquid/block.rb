@@ -82,6 +82,11 @@ module Liquid
       render_all(@nodelist, context)
     end
 
+    # Effectively the same as render, except the variables are not substituted, but instead returned as a seperate hash
+    def render_without_substitution(context)
+      render_all_without_substitution(@nodelist, context)
+    end
+
     protected
 
     def assert_missing_delimitation!
@@ -111,5 +116,44 @@ module Liquid
 
       output.join
     end
+
+    # Effectively the same as render_all, except the variables are not substituted, but instead returned as a seperate hash
+    def render_all_without_substitution(list, context)
+      output, substitutions = [], {}
+      list.each do |token|
+        # Break out if we have any unhanded interrupts.
+        break if context.has_interrupt?
+
+        begin
+          # If we get an Interrupt that means the block must stop processing. An
+          # Interrupt is any command that stops block execution such as {% break %} 
+          # or {% continue %}
+          if token.is_a? Continue or token.is_a? Break
+            context.push_interrupt(token.interrupt)
+            break
+          end
+
+          if token.respond_to?(:render)
+            if token.instance_of?(Variable)
+              substitutions["--#{token.key}--"] ||= token.render(context) # for the same variable, we don't have to render more than once
+              output << "--#{token.key}--"
+            else
+              # recursively render subblock in similar fashions, reserving the substitutions
+              string_output, subs = token.render_without_substitution(context)
+              output << string_output
+              substitutions = substitutions.merge(sub)
+            end
+          else
+            output << token
+          end
+        rescue ::StandardError => e
+          output << (context.handle_error(e))
+        end
+      end
+
+      [output.join, substitutions]
+    end
+
+
   end
 end

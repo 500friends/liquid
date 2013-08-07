@@ -128,6 +128,57 @@ module Liquid
       end
     end
 
+    # Effectively the same code as render, with the exception that the rendered result is unsubstituted
+    # For example:
+    # The email template is:
+    #   asdf{{ customer.balance }}fasdf
+    # The return of this function should be:
+    #   ["asdf--some_unique_id--fasdf", {
+    #     "--some_unique_id": customer-balance-value
+    #   }]
+    def render_without_substitution(*args)
+      return '' if @root.nil?
+      
+      context = case args.first
+      when Liquid::Context
+        args.shift
+      when Hash
+        Context.new([args.shift, assigns], instance_assigns, registers, @rethrow_errors)
+      when nil
+        Context.new(assigns, instance_assigns, registers, @rethrow_errors)
+      else
+        raise ArgumentError, "Expect Hash or Liquid::Context as parameter"
+      end
+
+      case args.last
+      when Hash
+        options = args.pop
+
+        if options[:registers].is_a?(Hash)
+          self.registers.merge!(options[:registers])
+        end
+
+        if options[:filters]
+          context.add_filters(options[:filters])
+        end
+
+      when Module
+        context.add_filters(args.pop)
+      when Array
+        context.add_filters(args.pop)
+      end
+
+      begin
+        # render the nodelist.
+        # for performance reasons we get a array back here. join will make a string out of it
+        result = @root.render_without_substitution(context)
+      ensure
+        @errors = context.errors
+      end
+    end
+
+
+
     def render!(*args)
       @rethrow_errors = true; render(*args)
     end

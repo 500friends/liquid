@@ -33,6 +33,11 @@ module Liquid
       end
     end
 
+    # only used for substitution purpose for uniquely identifying the content of this variable
+    def key
+      @key ||= "#{name}__#{filters.flatten.compact.map(&:to_s).join}"
+    end
+
     def render(context)
       return '' if @name.nil?
       @filters.inject(context[@name]) do |output, filter|
