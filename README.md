@@ -1,44 +1,32 @@
 # Liquid template engine
 
-## Introduction
+## Original Doc
 
-Liquid is a template engine which was written with very specific requirements:
+Original doc can be found here: https://github.com/Shopify/liquid
 
-* It has to have beautiful and simple markup. Template engines which don't produce good looking markup are no fun to use.
-* It needs to be non evaling and secure. Liquid templates are made so that users can edit them. You don't want to run code on your server which your users wrote.
-* It has to be stateless. Compile and render steps have to be separate so that the expensive parsing and compiling can be done once and later on you can just render it passing in a hash with local variables and objects.
+## Changes in this fork
 
-## Why you should use Liquid
+The original functionality of parsing and render methods are untouched and perform as expected. 
 
-* You want to allow your users to edit the appearance of your application but don't want them to run **insecure code on your server**.
-* You want to render templates directly from the database.
-* You like smarty (PHP) style template engines.
-* You need a template engine which does HTML just as well as emails.
-* You don't like the markup of your current templating engine.
+In this fork I added functionalities to render with variables and sections separated. Variables become separate substitution hash, and "if" conditionals becomes sections. It is to adapt specifically to sendgrid apis, but they should be applicable to other mass email providers, where variables and sections are much more preferred way to send mass emails.
 
-## What does it look like?
+The entry point is template.render_with_substitution method. Variables that are separated needs to match template.separate_variable_regex. 
 
-```html
-<ul id="products">
-  {% for product in products %}
-    <li>
-      <h2>{{ product.name }}</h2>
-      Only {{ product.price | price }}
+Nested conditionals are tricky, because sendgrid does not support nested sections (and I think for good reason too). However that means we have to go down each code path properly and extract out the unneeded sections as empty string. More detail in if.rb file.  
 
-      {{ product.description | prettyprint | paragraph }}
-    </li>
-  {% endfor %}
-</ul>
-```
+Modifications to this path may be confusing at first. I strongly suggest you read all the comments, play with it, and follow the code path through before making modifications. 
 
-## How to use Liquid
+## Important: no longer supported tags:
 
-Liquid supports a very simple API based around the Liquid::Template class.
-For standard use you can just pass it the content of a file and call render with a parameters hash.
+The following tags are no longer supported in the new approach. Support for most of them is easy to add in, it's just that we never use them, and I am lazy. =D
+The original render method still supports everything. These only apply to the new approach
 
-```ruby
-@template = Liquid::Template.parse("hi {{name}}") # Parses and compiles the template
-@template.render('name' => 'tobi')                # => "hi tobi"
-```
-
-[![Build Status](https://secure.travis-ci.org/Shopify/liquid.png)](http://travis-ci.org/Shopify/liquid)
+* break/continue
+* unless
+* case
+* raw
+* cycle
+* for loop
+* tables (tablerow)
+* ifchanged
+* variable assignment

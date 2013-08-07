@@ -12,7 +12,7 @@ module Liquid
   #
   class Variable
     FilterParser = /(?:#{FilterSeparator}|(?:\s*(?:#{QuotedFragment}|#{ArgumentSeparator})\s*)+)/o
-    attr_accessor :filters, :name
+    attr_accessor :filters, :name, :markup
 
     def initialize(markup)
       @markup  = markup
@@ -31,6 +31,11 @@ module Liquid
           end
         end
       end
+    end
+
+    # Only used for substitution purpose for uniquely identifying the content of this variable. Same variable name and filter will produce the same key even if they are different objects
+    def key
+      @key ||= Utils.uuid("#{name}__#{filters.flatten.compact.map(&:to_s).join}")
     end
 
     def render(context)
