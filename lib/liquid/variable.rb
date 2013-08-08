@@ -1,3 +1,4 @@
+require 'digest'
 module Liquid
 
   # Holds variables. Variables are only loaded "just in time"
@@ -34,8 +35,9 @@ module Liquid
     end
 
     # only used for substitution purpose for uniquely identifying the content of this variable
+    # a 10 character unique hash
     def key
-      @key ||= "#{name}__#{filters.flatten.compact.map(&:to_s).join}"
+      @key ||= Digest::SHA1.hexdigest("#{name}__#{filters.flatten.compact.map(&:to_s).join}")[0..9]
     end
 
     def render(context)

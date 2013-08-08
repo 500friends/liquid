@@ -43,6 +43,23 @@ module Liquid
       end
     end
 
+    # same as render above, except variables and sections are preserved in hash. See block.rb for more detail
+    def render_without_substitution(context)
+      context.stack do
+        @blocks.each do |block|
+          if block.evaluate(context)
+            string_output, sub_output, section_output = render_all_without_substitution(block.attachment, context)
+            condition_key = "-#{block.object_id}-" # unique key for the condition that evaluates to true
+            block_section_key = "-#{self.object_id}-" # unique key for the whole if else block, not just the condition
+            section_output[condition_key] = string_output
+            sub_output[block_section_key] = condition_key
+            return [block_section_key, sub_output, section_output]
+          end
+        end
+        ['', {}, {}]
+      end
+    end
+
     private
 
       def push_block(tag, markup)
