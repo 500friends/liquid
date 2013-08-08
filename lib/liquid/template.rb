@@ -91,6 +91,20 @@ module Liquid
     def render(*args)
       return '' if @root.nil?
       
+      context = extract_context(*args)
+      
+      begin
+        # render the nodelist.
+        # for performance reasons we get a array back here. join will make a string out of it
+        result = @root.render(context)
+        result.respond_to?(:join) ? result.join : result
+      ensure
+        @errors = context.errors
+      end
+    end
+
+
+    def extract_context(*args)
       context = case args.first
       when Liquid::Context
         args.shift
@@ -119,17 +133,8 @@ module Liquid
       when Array
         context.add_filters(args.pop)
       end
-
-      begin
-        # render the nodelist.
-        # for performance reasons we get a array back here. join will make a string out of it
-        result = @root.render(context)
-        result.respond_to?(:join) ? result.join : result
-      ensure
-        @errors = context.errors
-      end
+      context
     end
-
     # Effectively the same code as render, with the exception that the rendered result is unsubstituted, using both variable and blocks
     # We are doing this to fully take advantage of features from email providers such as sendgrid
     # It only applies when you are trying to send massive amounts of emails in a batch
@@ -158,34 +163,7 @@ module Liquid
     def render_without_substitution(*args)
       return '' if @root.nil?
       
-      context = case args.first
-      when Liquid::Context
-        args.shift
-      when Hash
-        Context.new([args.shift, assigns], instance_assigns, registers, @rethrow_errors)
-      when nil
-        Context.new(assigns, instance_assigns, registers, @rethrow_errors)
-      else
-        raise ArgumentError, "Expect Hash or Liquid::Context as parameter"
-      end
-
-      case args.last
-      when Hash
-        options = args.pop
-
-        if options[:registers].is_a?(Hash)
-          self.registers.merge!(options[:registers])
-        end
-
-        if options[:filters]
-          context.add_filters(options[:filters])
-        end
-
-      when Module
-        context.add_filters(args.pop)
-      when Array
-        context.add_filters(args.pop)
-      end
+      context = extract_context(*args)
 
       if @separate_variable_regex
         context.separate_variable_regex = @separate_variable_regex
