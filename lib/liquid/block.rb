@@ -155,8 +155,12 @@ module Liquid
 
           if token.respond_to?(:render)
             if token.instance_of?(Variable)
-              substitutions["-#{token.key}-"] ||= token.render(context) # for the same variable, we don't have to render more than once
-              output << "-#{token.key}-"
+              if token.name =~ context.separate_variable_regex
+                substitutions["-#{token.key}-"] ||= token.render(context) # for the same variable, we don't have to render more than once
+                output << "-#{token.key}-"
+              else
+                output << token.render(context) # for the variables that we don't need to separate, simply render it into plain text template
+              end
             else
               # recursively render subblock in similar fashions, reserving the substitutions
               string_output, sub_output, section_output = token.render_without_substitution(context)

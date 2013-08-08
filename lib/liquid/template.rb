@@ -48,6 +48,8 @@ module Liquid
       end
     end
 
+    attr_accessor :separate_variable_regex
+
     # creates a new <tt>Template</tt> from an array of tokens. Use <tt>Template.parse</tt> instead
     def initialize
     end
@@ -130,6 +132,7 @@ module Liquid
 
     # Effectively the same code as render, with the exception that the rendered result is unsubstituted, using both variable and blocks
     # We are doing this to fully take advantage of features from email providers such as sendgrid
+    # It only applies when you are trying to send massive amounts of emails in a batch
     # http://sendgrid.com/docs/API_Reference/SMTP_API/substitution_tags.html
     # http://sendgrid.com/docs/API_Reference/SMTP_API/section_tags.html
     # Return of this function is a plain string, a substution hash, and a section hash
@@ -149,6 +152,9 @@ module Liquid
     #   }, {
     #     "-some_unique_id_for_section_condition_that_evaluates_to_true-": "-some_unique_id_for_vars-"
     #   }]
+    # Note: that not all variables are seperated in hash, only variables that will differ in mass emailing should be.
+    # For example the "account" variable will remain the same for all the users of the account. As a result, they should be part of the text template instead of substitution hash.
+    # To list a variable to be seperated_varaible, use template.set_separate_variable_regex to set a regex that will be used to match variables. In the case above, "user" should be added to regex
     def render_without_substitution(*args)
       return '' if @root.nil?
       
@@ -179,6 +185,10 @@ module Liquid
         context.add_filters(args.pop)
       when Array
         context.add_filters(args.pop)
+      end
+
+      if @separate_variable_regex
+        context.separate_variable_regex = @separate_variable_regex
       end
 
       begin

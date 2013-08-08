@@ -14,7 +14,7 @@ module Liquid
   #   context['bob']  #=> nil  class Context
   class Context
     attr_reader :scopes, :errors, :registers, :environments
-
+    attr_accessor :separate_variable_regex
     def initialize(environments = {}, outer_scope = {}, registers = {}, rethrow_errors = false)
       @environments   = [environments].flatten
       @scopes         = [(outer_scope || {})]
@@ -24,6 +24,7 @@ module Liquid
       squash_instance_assigns_with_environments
 
       @interrupts = []
+      @separate_variable_regex = /^$/
     end
 
     def strainer
