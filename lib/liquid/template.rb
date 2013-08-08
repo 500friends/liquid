@@ -179,7 +179,6 @@ module Liquid
     end
 
 
-
     def render!(*args)
       @rethrow_errors = true; render(*args)
     end

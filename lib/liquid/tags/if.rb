@@ -43,14 +43,34 @@ module Liquid
       end
     end
 
-    # same as render above, except variables and sections are preserved in hash. See block.rb for more detail
+    # Same as render above, except variables and sections are preserved in hash. See block.rb for more detail
+    # Nesting is tricky because section nesting is not supported in sendgrid. So if we have code:
+    # if 
+    #   A
+    #   if
+    #     B
+    #   else
+    #     C
+    #   endif
+    #   D
+    # else
+    #   E
+    # endif
+    # If nesting section is supported, you can have one key to represent this whole section, and inside the value of the section you can reference another section for the inner conditional.
+    # Unfortunately, we have to create string results like this:
+    #   sec1 sec2 sec3 sec4 sec5
+    # where if the output is ABD
+    #   sec1=A sec2=B sec3='' sec4=D sec5=''
+    # and if the output is E
+    #   sec1='' sec2='' sec3='' sec4='' sec5=E
+    # This means we have to walk down each path of the conditional recursively, even when the condition is not satisfied. Messy stuff.
     def render_without_substitution(context)
       context.stack do
         @blocks.each do |block|
           if block.evaluate(context)
             string_output, sub_output, section_output = render_all_without_substitution(block.attachment, context)
-            condition_key = "-#{block.object_id}-" # unique key for the condition that evaluates to true
-            block_section_key = "-#{self.object_id}-" # unique key for the whole if else block, not just the condition
+            condition_key = block.key # unique key for the condition that evaluates to true
+            block_section_key = self.key # unique key for the whole if else block, not just the condition
             section_output[condition_key] = string_output
             sub_output[block_section_key] = condition_key
             return [block_section_key, sub_output, section_output]

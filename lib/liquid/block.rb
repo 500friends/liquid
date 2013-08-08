@@ -71,6 +71,10 @@ module Liquid
       @tag_name
     end
 
+    def key
+      @key ||= Utils.uuid
+    end
+
     def create_variable(token)
       token.scan(ContentOfVariable) do |content|
         return Variable.new(content.first)
@@ -155,8 +159,8 @@ module Liquid
           if token.respond_to?(:render)
             if token.instance_of?(Variable)
               if token.name =~ context.separate_variable_regex
-                substitutions["-#{token.key}-"] ||= token.render(context).to_s # for the same variable, we don't have to render more than once
-                output << "-#{token.key}-"
+                substitutions[token.key] ||= token.render(context).to_s # for the same variable, we don't have to render more than once
+                output << token.key
               else
                 output << token.render(context).to_s # for the variables that we don't need to separate, simply render it into plain text template
               end

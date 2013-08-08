@@ -31,6 +31,10 @@ module Liquid
       @child_condition = nil
     end
 
+    def key
+      @key ||= Utils.uuid
+    end
+
     def evaluate(context = Context.new)
       result = interpret_condition(left, right, operator, context)
 

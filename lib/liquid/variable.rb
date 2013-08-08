@@ -35,9 +35,8 @@ module Liquid
     end
 
     # only used for substitution purpose for uniquely identifying the content of this variable
-    # a 10 character unique hash
     def key
-      @key ||= Digest::SHA1.hexdigest("#{name}__#{filters.flatten.compact.map(&:to_s).join}")[0..9]
+      @key ||= Utils.uuid
     end
 
     def render(context)

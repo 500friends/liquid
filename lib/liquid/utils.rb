@@ -27,5 +27,11 @@ module Liquid
     def self.non_blank_string?(collection)
       collection.is_a?(String) && collection != ''
     end
+
+    def self.uuid
+      @uuid ||= 0
+      @uuid += 1
+      "-_li#{@uuid}-"
+    end
   end
 end
