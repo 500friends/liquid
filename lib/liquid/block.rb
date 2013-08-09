@@ -86,9 +86,8 @@ module Liquid
       render_all(@nodelist, context)
     end
 
-    # Effectively the same as render, except the variables are not substituted, but instead returned as a seperate hash
-    def render_without_substitution(context)
-      render_all_without_substitution(@nodelist, context)
+    def render_skeleton(context)
+      render_all_skeleton(@nodelist, context)
     end
 
     protected
@@ -121,55 +120,26 @@ module Liquid
       output.join
     end
 
-    # Effectively the same code as render, with the exception that the rendered result is unsubstituted, using both variable and blocks
-    # We are doing this to fully take advantage of features from email providers such as sendgrid
-    # http://sendgrid.com/docs/API_Reference/SMTP_API/substitution_tags.html
-    # http://sendgrid.com/docs/API_Reference/SMTP_API/section_tags.html
-    # Return of this function is a plain string, a substution hash, and a section hash
-    # For example:
-    # The email template is:
-    #   asdf{{ customer.balance }}fasdf
-    #   {% if blah blah that is true %}
-    #     {{ customer.balance }}
-    #   {% else %}
-    #     {{ customer.balance }}
-    #   {% endif %}
-    # The return of this function should be:
-    #   ["asdf-some_unique_id_for_vars-fasdf
-    #     -some_unique_id_for_section_condition_that_evaluates_to_true-", {
-    #     "-some_unique_id_for_vars-": customer-balance-value,
-    #     "-some_unique_id_for_if_block": "-some_unique_id_for_section_condition_that_evaluates_to_true-"
-    #   }, {
-    #     "-some_unique_id_for_section_condition_that_evaluates_to_true-": "-some_unique_id_for_vars-"
-    #   }]
-    def render_all_without_substitution(list, context)
-      output, substitutions, sections = [], {}, {}
+    # see template.rb for more detail
+    # returns a rendered skeleton text, an array of variables to be evaluated later (including value for segments), and a hash for segments
+    def render_all_skeleton(list, context)
+      output, variables, sections = [], {}, {}
       list.each do |token|
-        # Break out if we have any unhanded interrupts.
-        break if context.has_interrupt?
-
         begin
-          # If we get an Interrupt that means the block must stop processing. An
-          # Interrupt is any command that stops block execution such as {% break %} 
-          # or {% continue %}
-          if token.is_a? Continue or token.is_a? Break
-            context.push_interrupt(token.interrupt)
-            break
-          end
           if token.respond_to?(:render)
             if token.instance_of?(Variable)
               if token.name =~ context.separate_variable_regex
-                substitutions[token.key] ||= token.render(context).to_s # for the same variable, we don't have to render more than once
+                variables[token.key] ||= token
                 output << token.key
               else
                 output << token.render(context).to_s # for the variables that we don't need to separate, simply render it into plain text template
               end
             else
-              # recursively render subblock in similar fashions, reserving the substitutions
-              string_output, sub_output, section_output = token.render_without_substitution(context)
+              # recursively render subblock in similar fashions, preserving the substitutions and sections
+              string_output, var_output, section_output = token.render_skeleton(context)
               output << string_output
               sections.merge!(section_output)
-              substitutions.merge!(sub_output)
+              variables.merge!(var_output)
             end
           else
             output << token
@@ -179,9 +149,8 @@ module Liquid
         end
       end
 
-      [output.join, substitutions, sections]
+      [output.join, variables, sections]
     end
-
 
   end
 end

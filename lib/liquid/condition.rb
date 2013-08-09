@@ -31,8 +31,14 @@ module Liquid
       @child_condition = nil
     end
 
+    # key to represent this condition on the output string
     def key
       @key ||= Utils.uuid
+    end
+
+    # key to represent the section where this condition evaluates to true
+    def value_key
+      @value_key ||= Utils.uuid
     end
 
     def evaluate(context = Context.new)

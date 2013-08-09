@@ -15,6 +15,7 @@ module Liquid
   class Context
     attr_reader :scopes, :errors, :registers, :environments
     attr_accessor :separate_variable_regex
+    
     def initialize(environments = {}, outer_scope = {}, registers = {}, rethrow_errors = false)
       @environments   = [environments].flatten
       @scopes         = [(outer_scope || {})]

@@ -135,49 +135,58 @@ module Liquid
       end
       context
     end
-    # Effectively the same code as render, with the exception that the rendered result is unsubstituted, using both variable and blocks
+
     # We are doing this to fully take advantage of features from email providers such as sendgrid
     # It only applies when you are trying to send massive amounts of emails in a batch
     # http://sendgrid.com/docs/API_Reference/SMTP_API/substitution_tags.html
     # http://sendgrid.com/docs/API_Reference/SMTP_API/section_tags.html
-    # Return of this function is a plain string, a substution hash, and a section hash
-    # For example:
-    # The email template is:
-    #   asdf{{ customer.balance }}fasdf
-    #   {% if blah blah that is true %}
-    #     {{ customer.balance }}
-    #   {% else %}
-    #     {{ customer.balance }}
-    #   {% endif %}
-    # The return of this function should be:
-    #   ["asdf-some_unique_id_for_vars-fasdf
-    #     -some_unique_id_for_section_condition_that_evaluates_to_true-", {
-    #     "-some_unique_id_for_vars-": customer-balance-value,
-    #     "-some_unique_id_for_if_block": "-some_unique_id_for_section_condition_that_evaluates_to_true-"
-    #   }, {
-    #     "-some_unique_id_for_section_condition_that_evaluates_to_true-": "-some_unique_id_for_vars-"
-    #   }]
     # Note: that not all variables are seperated in hash, only variables that will differ in mass emailing should be.
     # For example the "account" variable will remain the same for all the users of the account. As a result, they should be part of the text template instead of substitution hash.
     # To list a variable to be seperated_varaible, use template.set_separate_variable_regex to set a regex that will be used to match variables. In the case above, "user" should be added to regex
-    def render_without_substitution(*args)
-      return '' if @root.nil?
-      
+    
+    # returns a rendered skeleton text, an hash of variables to be evaluated later (including value for segments), and a hash for segments
+    # This only need to happen once for each template, after that each variable that should be hashed can go through the second function for extraction. 
+    # This function should pass in a hash of variables that should not be separated in hash, variables such as hash
+    def render_skeleton(*args)
       context = extract_context(*args)
-
       if @separate_variable_regex
         context.separate_variable_regex = @separate_variable_regex
       end
 
       begin
-        # render the nodelist.
-        # for performance reasons we get a array back here. join will make a string out of it
-        result = @root.render_without_substitution(context)
+        @root.render_skeleton(context)
       ensure
         @errors = context.errors
       end
     end
 
+    # After render_skeleton, you can use this method to evaluate the variables extracted.
+    # pass in three hashes
+    #   variable hash is a hash of key to the Liquid::Variable or Liquid::ConditionalVariable object to be evaluated
+    #   static_variable_hash is a hash of variables that stay the same, like {'account' => Account.first}
+    #   array_variable_hash is a hash of variable name to array of instances, like {'customer' => Customer.all, 'customer_detail' => CustomerDetail.all}. All arrays are assumed to be of the same length.
+    # Each entry in the array_variable_hash's array is added to static variable before evaluating the variables.
+    # Output is an hash of variable name to an array of values, for example:
+    #     {
+    #       'customer_name' => ['Hong', 'Tina'],
+    #       'customer_hobby' => ['arbitrary', 'random']
+    #     }
+    def render_variables(variable_hash, static_variable_hash, array_variable_hash)
+      context = Context.new([static_variable_hash, assigns], instance_assigns, registers, @rethrow_errors)
+      output_count = array_variable_hash.first[1].length
+      result_hash = {}
+      variable_hash.each do |key, variable_object|
+        values = []
+        output_count.times do |i|
+          context.stack do
+            array_variable_hash.each{|k,v| context[k] = v[i]}
+            values << variable_object.render(context).to_s
+          end
+        end
+        result_hash[key] = values
+      end
+      result_hash
+    end
 
     def render!(*args)
       @rethrow_errors = true; render(*args)

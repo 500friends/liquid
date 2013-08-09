@@ -64,20 +64,23 @@ module Liquid
     # and if the output is E
     #   sec1='' sec2='' sec3='' sec4='' sec5=E
     # This means we have to walk down each path of the conditional recursively, even when the condition is not satisfied. Messy stuff.
-    def render_without_substitution(context)
+    def render_skeleton(context)
+      output, variables, sections = [], {}, {}
       context.stack do
         @blocks.each do |block|
-          if block.evaluate(context)
-            string_output, sub_output, section_output = render_all_without_substitution(block.attachment, context)
-            condition_key = block.key # unique key for the condition that evaluates to true
-            block_section_key = self.key # unique key for the whole if else block, not just the condition
-            section_output[condition_key] = string_output
-            sub_output[block_section_key] = condition_key
-            return [block_section_key, sub_output, section_output]
+          output << block.key
+          string_output, var_output, section_output = render_all_skeleton(block.attachment, context)
+          section_output[block.value_key] = string_output
+          sections.merge!(section_output)
+          variables.merge!(var_output)
+          if block.instance_of? ElseCondition
+            variables[block.key] = ConditionalVariable.new(nil, @blocks - [block], block.value_key)
+          else
+            variables[block.key] = ConditionalVariable.new(block, nil, block.value_key)
           end
-        end
-        ['', {}, {}]
+        end          
       end
+      [output.join, variables, sections]
     end
 
     private

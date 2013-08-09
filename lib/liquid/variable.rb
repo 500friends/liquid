@@ -1,4 +1,3 @@
-require 'digest'
 module Liquid
 
   # Holds variables. Variables are only loaded "just in time"
@@ -34,9 +33,9 @@ module Liquid
       end
     end
 
-    # only used for substitution purpose for uniquely identifying the content of this variable
+    # Only used for substitution purpose for uniquely identifying the content of this variable. Same variable name and filter will produce the same key even if they are different objects
     def key
-      @key ||= Utils.uuid
+      @key ||= Utils.uuid("#{name}__#{filters.flatten.compact.map(&:to_s).join}")
     end
 
     def render(context)

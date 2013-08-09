@@ -28,10 +28,18 @@ module Liquid
       collection.is_a?(String) && collection != ''
     end
 
-    def self.uuid
+    # supply an uuid, in the case where a unique key is passed in, it always supply the same id for that key
+    def self.uuid(unique_key = nil)
       @uuid ||= 0
-      @uuid += 1
-      "-_li#{@uuid}-"
+      @uuid_hashes ||= {}
+      if unique_key && @uuid_hashes[unique_key]
+        return @uuid_hashes[unique_key]
+      else
+        @uuid += 1
+        new_id = "-_li#{@uuid}-"
+        @uuid_hashes[unique_key] = new_id if unique_key
+        new_id
+      end
     end
   end
 end
