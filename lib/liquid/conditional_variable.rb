@@ -3,19 +3,36 @@ module Liquid
   # Holds a conditional variable, used for section substitution variables, only used in skeleton extraction
   class ConditionalVariable
 
-    attr_accessor :condition, :negative_conditions, :value
-    def initialize(condition, negative_conditions, value)
-      self.condition = condition
-      # negative_conditions is an array of conditions that needs to evaluate to false to hold true, used in cases of "else" in the if clauses
-      self.negative_conditions = negative_conditions
+    attr_accessor :conditions, :negative_conditions, :value
+    def initialize(positive, total, value)
+      self.conditions = []
+      self.negative_conditions = []
       self.value = value
+      add_conditions(positive, total)
+    end
+    
+    def add_positive_condition(c)
+      self.conditions << c
+    end
+
+    def add_negative_conditions(cs)
+      self.negative_conditions += cs
+    end
+
+    # pass in a single condition, which may be "else" type, and an array of all conditions in the same if/else block, which will be added to negative if the first condition is 'else'
+    def add_conditions(positive, total)
+      if positive.instance_of? ElseCondition
+        add_negative_conditions(total - [positive])
+      else
+        add_positive_condition(positive)
+      end
     end
 
     def render(context)
-      if condition
-        condition.evaluate(context) ? value : ''
+      if conditions.map{|x| x.evaluate(context)}.all? && !negative_conditions.map{|x| x.evaluate(context)}.any?
+        value
       else
-        negative_conditions.map{|x| x.evaluate(context)}.any? ? '' : value
+        ''
       end
     end
   end

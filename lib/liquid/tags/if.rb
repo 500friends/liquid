@@ -68,19 +68,51 @@ module Liquid
       output, variables, sections = [], {}, {}
       context.stack do
         @blocks.each do |block|
-          output << block.key
           string_output, var_output, section_output = render_all_skeleton(block.attachment, context)
-          section_output[block.value_key] = string_output
-          sections.merge!(section_output)
-          variables.merge!(var_output)
-          if block.instance_of? ElseCondition
-            variables[block.key] = ConditionalVariable.new(nil, @blocks - [block], block.value_key)
+          if section_output.present?
+            # this means there is nested conditional in the string_output array
+            # we need to process through all of them to create intermediate segments
+            # for example, output could be ['textA', 'textB', 'sectionA', 'sectionB', 'textC']
+            # we will need to create two new sections, one to represent 'textAtextB', one to represent 'textC'
+            string_so_far = ''
+            current_segment = string_output.shift
+            while current_segment
+              next_segment = string_output.shift
+              if current_segment.instance_of?(ConditionalSection) || !next_segment
+                string_so_far += current_segment if !next_segment # we are at the end, add current segment
+                # we either encountered a conditioanl section or the end, which means we have to package the string we got so far into a new section
+                if string_so_far.present?
+                  variable_key = Utils.uuid
+                  section_value_key = Utils.uuid
+                  sections[section_value_key] = string_so_far
+                  variables[variable_key] = ConditionalVariable.new(block, @blocks, section_value_key)
+                  output << ConditionalSection.new(variable_key)
+                  # reset the string so far
+                  string_so_far = ''
+                end
+              end
+              if current_segment.instance_of?(ConditionalSection)
+                # now we have to add the block condition into the conditional variables
+                var_output[current_segment].add_conditions(block, @blocks)
+                output << current_segment
+              else
+                string_so_far += current_segment
+              end
+              current_segment = next_segment
+            end
+            sections.merge!(section_output)
+            variables.merge!(var_output)
           else
-            variables[block.key] = ConditionalVariable.new(block, nil, block.value_key)
+            # there is no nested conditionals involved here, base case scenario in the recursion
+            output << ConditionalSection.new(block.key)
+            raise 'fuck' if string_output.map{|x| x.instance_of? ConditionalSection}.any?
+            sections[block.value_key] = string_output.join
+            variables.merge!(var_output)
+            variables[block.key] = ConditionalVariable.new(block, @blocks, block.value_key)
           end
-        end          
+        end
       end
-      [output.join, variables, sections]
+      [output, variables, sections]
     end
 
     private

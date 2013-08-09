@@ -154,7 +154,8 @@ module Liquid
       end
 
       begin
-        @root.render_skeleton(context)
+        output, variables, sections = @root.render_skeleton(context)
+        [output.join, variables, sections]
       ensure
         @errors = context.errors
       end

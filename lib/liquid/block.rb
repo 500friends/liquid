@@ -121,7 +121,7 @@ module Liquid
     end
 
     # see template.rb for more detail
-    # returns a rendered skeleton text, an array of variables to be evaluated later (including value for segments), and a hash for segments
+    # returns an array of rendered skeleton text, an array of variables to be evaluated later (including value for segments), and a hash for segments
     def render_all_skeleton(list, context)
       output, variables, sections = [], {}, {}
       list.each do |token|
@@ -136,8 +136,8 @@ module Liquid
               end
             else
               # recursively render subblock in similar fashions, preserving the substitutions and sections
-              string_output, var_output, section_output = token.render_skeleton(context)
-              output << string_output
+              string_outputs, var_output, section_output = token.render_skeleton(context)
+              output += string_outputs
               sections.merge!(section_output)
               variables.merge!(var_output)
             end
@@ -149,7 +149,7 @@ module Liquid
         end
       end
 
-      [output.join, variables, sections]
+      [output, variables, sections]
     end
 
   end

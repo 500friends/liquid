@@ -21,6 +21,11 @@ module Liquid
       ''
     end
 
+    # currently only implemented for "if" tags
+    def render_skeleton(context)
+      ''
+    end
+
   end # Tag
 
 end # Tag
