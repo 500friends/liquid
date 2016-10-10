@@ -71,6 +71,10 @@ module Liquid
       @tag_name
     end
 
+    def key
+      @key ||= Utils.uuid
+    end
+
     def create_variable(token)
       token.scan(ContentOfVariable) do |content|
         return Variable.new(content.first)
@@ -80,6 +84,10 @@ module Liquid
 
     def render(context)
       render_all(@nodelist, context)
+    end
+
+    def render_skeleton(context)
+      render_all_skeleton(@nodelist, context)
     end
 
     protected
@@ -111,5 +119,38 @@ module Liquid
 
       output.join
     end
+
+    # see template.rb for more detail
+    # returns an array of rendered skeleton text, an array of variables to be evaluated later (including value for segments), and a hash for segments
+    def render_all_skeleton(list, context)
+      output, variables, sections = [], {}, {}
+      list.each do |token|
+        begin
+          if token.respond_to?(:render)
+            if token.instance_of?(Variable)
+              if token.markup =~ context.separate_variable_regex
+                variables[token.key] ||= token
+                output << token.key
+              else
+                output << token.render(context).to_s # for the variables that we don't need to separate, simply render it into plain text template
+              end
+            else
+              # recursively render subblock in similar fashions, preserving the substitutions and sections
+              string_outputs, var_output, section_output = token.render_skeleton(context)
+              output += string_outputs
+              sections.merge!(section_output)
+              variables.merge!(var_output)
+            end
+          else
+            output << token
+          end
+        rescue ::StandardError => e
+          output << (context.handle_error(e))
+        end
+      end
+
+      [output, variables, sections]
+    end
+
   end
 end
